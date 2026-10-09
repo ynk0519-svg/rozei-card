@@ -275,7 +275,9 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 
 /* ---------- データ ---------- */
 let CARDS=clone(DEFAULT_CARDS);
-let CFG={maxStars:5,orgPass:"0000",endpoint:""};   // 運営パスコード・送信先URL
+let CFG={maxStars:5,orgPass:"0000",
+  endpoint:"https://script.google.com/macros/s/AKfycbw8j6YgG59x-wijacvy0HJ57olhSSegnF2ZrR4txDAi8ku7MfTy2FwJCyf2snB4ZD80/exec",   // 結果の送信先（Googleスプレッドシート）
+  readKey:""};       // 運営だけが持つ取りこみ用キー
 let SCHOOLS=[];        // {code,name,pass,note}
 let GROUPS=[];         // 結果（班ごと）
 let DEV={school:"",schoolName:"",className:""};    // この端末の設定（先生が設定）
@@ -345,8 +347,10 @@ async function sendCloud(list){
 async function fetchCloud(){
   if(!CFG.endpoint) return {ok:false,msg:"送信先URLが未設定です"};
   try{
-    const r=await fetch(CFG.endpoint+(CFG.endpoint.indexOf("?")<0?"?":"&")+"all=1");
+    const q="all=1"+(CFG.readKey?"&key="+encodeURIComponent(CFG.readKey):"");
+    const r=await fetch(CFG.endpoint+(CFG.endpoint.indexOf("?")<0?"?":"&")+q);
     const d=await r.json();
+    if(d&&d.ok===false) return {ok:false,msg:(d.error==="key"?"取りこみキーがちがいます":"取りこめませんでした")};
     const list=(d&&d.groups)||[];
     list.forEach(mergeGroup); saveGroups();
     return {ok:true,msg:list.length+"班を取りこみました"};
@@ -798,7 +802,10 @@ function orgConfig(){
       空のままでもファイルのやり取りで運用できます。</p>
     <label class="field">送信先URL（Apps Script の /exec）
       <input type="text" data-model="endpoint" value="${esc(CFG.endpoint)}" placeholder="https://script.google.com/macros/s/..../exec"></label>
+    <label class="field">取りこみキー <span>（運営だけが入れる合言葉。データを読み出すときに必要）</span>
+      <input type="text" data-model="readKey" value="${esc(CFG.readKey)}" placeholder="スクリプトに設定した合言葉"></label>
     <div class="btn-row"><button class="btn ghost mini" data-action="testCloud">接続をためす</button></div>
+    <p class="sub">送信（各学校→スプレッドシート）はキーなしで動きます。キーは「クラウドから取りこむ」のときだけ使います。</p>
   </div>
   <div class="panel"><h2>端末の設定</h2>
     <p class="sub">この端末：${DEV.className?`${esc(DEV.schoolName)} ${esc(DEV.className)}`:"未設定"}</p>
@@ -904,6 +911,7 @@ app.addEventListener("input",e=>{
   if(k==="nsPass"){S.newSchool.pass=t.value;return;}
   if(k==="orgPass"){CFG.orgPass=t.value.trim()||"0000";saveSetup();return;}
   if(k==="endpoint"){CFG.endpoint=t.value.trim();saveSetup();return;}
+  if(k==="readKey"){CFG.readKey=t.value.trim();saveSetup();return;}
   if(t.dataset.member!==undefined){G.members[+t.dataset.member].name=t.value;return;}
   if(t.dataset.draft){const f=t.dataset.draft;
     S.draft[f]=(f==="yen"||f==="id")?(+t.value||0):t.value;

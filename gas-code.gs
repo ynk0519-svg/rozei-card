@@ -19,6 +19,11 @@
 
 var SHEET_NAME = 'results';
 
+// ▼ 取りこみキー（運営だけが知る合言葉）。好きな文字列に変えてください。
+//    送信（各学校→このシート）はキーなしで動きます。
+//    データの読み出し（?all=1）だけ、このキーが一致しないと拒否します。
+var READ_KEY = 'kagoshima2026';
+
 var HEADERS = ['gid','学校コード','学校名','クラス','班','人数','メンバー','個人の選択',
                'グループの政策','星合計','予算合計','理由','発表者','状態','更新日時','data'];
 
@@ -101,6 +106,8 @@ function doPost(e) {
 /** 取り出し：  ....../exec?all=1  で全件を返します（運営画面の「クラウドから取りこむ」） */
 function doGet(e) {
   try {
+    var key = (e && e.parameter && e.parameter.key) || '';
+    if (READ_KEY && key !== READ_KEY) return json_({ ok: false, error: 'key' });
     var sh = getSheet_();
     var last = sh.getLastRow();
     if (last < 2) return json_({ ok: true, groups: [] });
